@@ -13,9 +13,17 @@ import { gameConfig } from './game.config';
 import { GameService } from './game.service';
 import type { PlayerInput, PowerType } from './game.types';
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.CLIENT_URL?.replace(/\/$/, ''),
+  'http://localhost:5173',
+].filter(Boolean);
+
 @WebSocketGateway({
   cors: {
-    origin: process.env.CLIENT_URL ?? '*',
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true,
   },
 })
 export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -25,7 +33,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   private lastUpdate = Date.now();
   private gameLoop?: NodeJS.Timeout;
 
-  constructor(private readonly gameService: GameService) {}
+  constructor(private readonly gameService: GameService) { }
 
   afterInit(): void {
     const interval = 1000 / gameConfig.tickRate;
