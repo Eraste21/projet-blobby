@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap');
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: #020617;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"],
+a,
+input[type="button"],
+input[type="submit"] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+canvas {
+  display: block;
+}
+
+.game-shell {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+}
+
+.mobile-controls,
+.mobile-pause-button {
+  display: none;
+}
+
+@media (max-width: 820px), (pointer: coarse) {
+  .mobile-pause-button {
+    position: fixed;
+    right: 12px;
+    top: 74px;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(15, 23, 42, 0.44);
+    color: rgba(255, 255, 255, 0.78);
+    font: 900 14px Orbitron, Arial, sans-serif;
+    backdrop-filter: blur(8px);
+  }
+
+  .mobile-controls {
+    pointer-events: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 20;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+
+  .mobile-controls button {
+    pointer-events: auto;
+    user-select: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(15, 23, 42, 0.48);
+    color: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    touch-action: none;
+  }
+
+  .mobile-controls button:active,
+  .mobile-pause-button:active {
+    transform: scale(0.94);
+    background: rgba(56, 189, 248, 0.40);
+  }
+
+  .mobile-dpad {
+    display: grid;
+    grid-template-areas:
+      ". up ."
+      "left down right";
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(2, 46px);
+    gap: 8px;
+  }
+
+  .mobile-control {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    font: 900 13px Orbitron, Arial, sans-serif;
+  }
+
+  .mobile-control.up { grid-area: up; }
+  .mobile-control.left { grid-area: left; }
+  .mobile-control.down { grid-area: down; }
+  .mobile-control.right { grid-area: right; }
+
+  .mobile-powers {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .mobile-powers button {
+    min-width: 76px;
+    min-height: 42px;
+    border-radius: 16px;
+    padding: 7px 10px;
+    text-align: left;
+  }
+
+  .mobile-powers strong,
+  .mobile-powers span {
+    display: block;
+    line-height: 1.05;
+  }
+
+  .mobile-powers strong {
+    font: 900 12px Orbitron, Arial, sans-serif;
+    color: #7dd3fc;
+  }
+
+  .mobile-powers span {
+    margin-top: 3px;
+    font: 700 10px Orbitron, Arial, sans-serif;
+    color: rgba(255, 255, 255, 0.78);
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-controls {
+    padding: 0 10px;
+  }
+
+  .mobile-dpad {
+    grid-template-columns: repeat(3, 41px);
+    grid-template-rows: repeat(2, 41px);
+    gap: 6px;
+  }
+
+  .mobile-control {
+    width: 41px;
+    height: 41px;
+  }
+
+  .mobile-powers button {
+    min-width: 66px;
+    min-height: 38px;
+    padding: 6px 8px;
+  }
+}

@@ -1,0 +1,103 @@
+import type { Camera, Player } from './types';
+
+function shouldBlink(player: Player, now: number) {
+  const hitUntil = player.hitUntil ?? 0;
+
+  if (hitUntil <= now) return false;
+
+  return Math.floor(now / 95) % 2 === 0;
+}
+
+export function drawPlayers(
+  ctx: CanvasRenderingContext2D,
+  players: Record<string, Player>,
+  camera: Camera,
+  myPlayerId: string,
+) {
+  const now = Date.now();
+  const myPlayer = players[myPlayerId];
+
+  Object.values(players).forEach((player) => {
+    if (!player.isAlive) return;
+
+    const isMe = player.id === myPlayerId;
+
+    const mustHideRunnerFromHunter =
+      myPlayer?.role === 'hunter' &&
+      player.role === 'runner' &&
+      player.isInvisible &&
+      !isMe;
+
+    if (mustHideRunnerFromHunter) {
+      return;
+    }
+
+    const screenX = player.x - camera.x;
+    const screenY = player.y - camera.y;
+
+    const roleLabel = player.role === 'hunter' ? 'CHASSEUR' : 'FUYARD';
+    const label = player.name ? `${player.name} - ${roleLabel}` : roleLabel;
+
+    const blinking = shouldBlink(player, now);
+
+    ctx.save();
+
+    if (player.isInvisible && isMe) {
+      ctx.globalAlpha = 0.35;
+    } else if (blinking) {
+      ctx.globalAlpha = 0.25;
+    } else {
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, player.r, 0, Math.PI * 2);
+
+    ctx.fillStyle =
+      player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
+
+    ctx.shadowColor =
+      blinking
+        ? '#ffffff'
+        : player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
+
+    ctx.shadowBlur = blinking ? 22 : 50;
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    if (blinking) {
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, player.r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = player.isInvisible && isMe ? 0.35 : 1;
+
+    ctx.font = '700 12px Orbitron, Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, screenX, screenY - player.r - 12);
+
+    if (player.frozenUntil > now) {
+      ctx.strokeStyle = '#9ee7ff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, player.r + 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (player.speedBoostUntil > now) {
+      ctx.strokeStyle = '#ffe45c';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, player.r + 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  });
+}
