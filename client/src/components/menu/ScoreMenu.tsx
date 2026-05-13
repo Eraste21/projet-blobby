@@ -19,7 +19,7 @@ export function ScoreMenu({ history, onClear, onBack }: ScoreMenuProps) {
       <div className="space-y-7">
         <div>
           <p className="text-sm uppercase tracking-[0.35em] text-sky-300">Historique</p>
-          <h1 className="mt-3 text-4xl font-bold">Tes dernières parties</h1>
+          <h1 className="mt-3 text-4xl font-bold">Dernières parties</h1>
         </div>
 
         {history.length === 0 ? (

@@ -2,9 +2,9 @@ import type { Camera, Player } from './types';
 
 function shouldBlink(player: Player, now: number) {
   const hitUntil = player.hitUntil ?? 0;
-
   if (hitUntil <= now) return false;
 
+  // Clignotement rapide comme dans les jeux arcade après une perte de vie.
   return Math.floor(now / 95) % 2 === 0;
 }
 
@@ -15,52 +15,31 @@ export function drawPlayers(
   myPlayerId: string,
 ) {
   const now = Date.now();
+
   const myPlayer = players[myPlayerId];
 
   Object.values(players).forEach((player) => {
     if (!player.isAlive) return;
 
     const isMe = player.id === myPlayerId;
+    const hiddenFromHunter = Boolean(myPlayer?.role === 'hunter' && player.role === 'runner' && player.isInvisible && !isMe);
 
-    const mustHideRunnerFromHunter =
-      myPlayer?.role === 'hunter' &&
-      player.role === 'runner' &&
-      player.isInvisible &&
-      !isMe;
-
-    if (mustHideRunnerFromHunter) {
-      return;
-    }
+    if (hiddenFromHunter) return;
 
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
-
     const roleLabel = player.role === 'hunter' ? 'CHASSEUR' : 'FUYARD';
     const label = player.name ? `${player.name} - ${roleLabel}` : roleLabel;
-
     const blinking = shouldBlink(player, now);
 
     ctx.save();
-
-    if (player.isInvisible && isMe) {
-      ctx.globalAlpha = 0.35;
-    } else if (blinking) {
-      ctx.globalAlpha = 0.25;
-    } else {
-      ctx.globalAlpha = 1;
-    }
+    ctx.globalAlpha = player.isInvisible && isMe ? 0.35 : blinking ? 0.25 : 1;
 
     ctx.beginPath();
     ctx.arc(screenX, screenY, player.r, 0, Math.PI * 2);
 
-    ctx.fillStyle =
-      player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
-
-    ctx.shadowColor =
-      blinking
-        ? '#ffffff'
-        : player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
-
+    ctx.fillStyle = player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
+    ctx.shadowColor = blinking ? '#ffffff' : player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
     ctx.shadowBlur = blinking ? 22 : 50;
     ctx.fill();
 
@@ -76,7 +55,6 @@ export function drawPlayers(
     }
 
     ctx.globalAlpha = player.isInvisible && isMe ? 0.35 : 1;
-
     ctx.font = '700 12px Orbitron, Arial';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
@@ -97,7 +75,6 @@ export function drawPlayers(
       ctx.arc(screenX, screenY, player.r + 12, 0, Math.PI * 2);
       ctx.stroke();
     }
-
     ctx.restore();
   });
 }

@@ -1,5 +1,7 @@
 # Sons Blobby
 
+Fichiers audio attendus par le code :
+
 - `shoot.mp3` : tir rapide du chasseur
 - `dash.mp3` : dash du chasseur
 - `radar.mp3` : radar du chasseur

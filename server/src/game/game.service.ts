@@ -18,25 +18,135 @@ import type {
   Wall,
 } from './game.types';
 
+type GameRoomContext = {
+  id: string;
+  state: GameState;
+  runnerSpawnIndex: number;
+  nextHealSpawnAt: number;
+  nextSpeedSpawnAt: number;
+};
+
+export type RoomGameOverPayload = {
+  roomId: string;
+  gameOver: GameOverPayload;
+};
+
 @Injectable()
 export class GameService {
-  private state: GameState = this.createInitialState();
-  private runnerSpawnIndex = 0;
-  private nextHealSpawnAt = 0;
-  private nextSpeedSpawnAt = 0;
+  private rooms = new Map<string, GameRoomContext>();
+  private playerRooms = new Map<string, string>();
+  private activeRoomId = '';
+  private roomCounter = 0;
+
+  constructor() {
+    this.createRoom();
+  }
+
+  private get currentRoom(): GameRoomContext {
+    if (!this.activeRoomId || !this.rooms.has(this.activeRoomId)) {
+      const existingRoom = [...this.rooms.values()][0] ?? this.createRoom();
+      this.activeRoomId = existingRoom.id;
+    }
+
+    return this.rooms.get(this.activeRoomId)!;
+  }
+
+  private get state(): GameState {
+    return this.currentRoom.state;
+  }
+
+  private set state(nextState: GameState) {
+    this.currentRoom.state = nextState;
+  }
+
+  private get runnerSpawnIndex(): number {
+    return this.currentRoom.runnerSpawnIndex;
+  }
+
+  private set runnerSpawnIndex(value: number) {
+    this.currentRoom.runnerSpawnIndex = value;
+  }
+
+  private get nextHealSpawnAt(): number {
+    return this.currentRoom.nextHealSpawnAt;
+  }
+
+  private set nextHealSpawnAt(value: number) {
+    this.currentRoom.nextHealSpawnAt = value;
+  }
+
+  private get nextSpeedSpawnAt(): number {
+    return this.currentRoom.nextSpeedSpawnAt;
+  }
+
+  private set nextSpeedSpawnAt(value: number) {
+    this.currentRoom.nextSpeedSpawnAt = value;
+  }
+
+  private createRoom(): GameRoomContext {
+    const room: GameRoomContext = {
+      id: `room-${this.roomCounter += 1}`,
+      state: this.createInitialState(),
+      runnerSpawnIndex: 0,
+      nextHealSpawnAt: 0,
+      nextSpeedSpawnAt: 0,
+    };
+
+    this.rooms.set(room.id, room);
+    this.activeRoomId = room.id;
+
+    return room;
+  }
+
+  private findOrCreateWaitingRoom(): GameRoomContext {
+    const waitingRoom = [...this.rooms.values()].find((room) => {
+      const playerCount = Object.keys(room.state.players).length;
+      return room.state.status === 'waiting' && playerCount < gameConfig.maxPlayers;
+    });
+
+    return waitingRoom ?? this.createRoom();
+  }
+
+  private activateRoom(roomId: string | null | undefined): boolean {
+    if (!roomId || !this.rooms.has(roomId)) return false;
+    this.activeRoomId = roomId;
+    return true;
+  }
+
+  private activatePlayerRoom(playerId: string): boolean {
+    return this.activateRoom(this.playerRooms.get(playerId));
+  }
+
+  getPlayerRoomId(playerId: string): string | null {
+    return this.playerRooms.get(playerId) ?? null;
+  }
+
+  getRoomIds(): string[] {
+    return [...this.rooms.keys()];
+  }
+
+  getRoomPlayerIds(roomId: string): string[] {
+    const room = this.rooms.get(roomId);
+    if (!room) return [];
+    return Object.keys(room.state.players);
+  }
+
 
   addPlayer(id: string): Player | null {
-    const existingPlayer = this.state.players[id];
-    if (existingPlayer) return existingPlayer;
+    const existingRoomId = this.playerRooms.get(id);
+    if (existingRoomId && this.activateRoom(existingRoomId)) {
+      const existingPlayer = this.state.players[id];
+      if (existingPlayer) return existingPlayer;
+      this.playerRooms.delete(id);
+    }
+
+    const room = this.findOrCreateWaitingRoom();
+    this.activeRoomId = room.id;
 
     const players = Object.values(this.state.players);
 
     if (players.length >= gameConfig.maxPlayers) {
       return null;
-    }
-
-    if (this.state.status === 'finished' && players.length === 0) {
-      this.resetGame();
     }
 
     const role = this.getNextRole();
@@ -67,6 +177,7 @@ export class GameService {
     };
 
     this.state.players[id] = player;
+    this.playerRooms.set(id, this.activeRoomId);
     this.pushEvent('system', `${this.displayName(player)} rejoint en ${role === 'hunter' ? 'chasseur' : 'fuyard'}.`);
     this.tryStartGame();
 
@@ -74,8 +185,12 @@ export class GameService {
   }
 
   removePlayer(id: string): void {
+    const roomId = this.playerRooms.get(id);
+    if (!this.activateRoom(roomId)) return;
+
     const removed = this.state.players[id];
     delete this.state.players[id];
+    this.playerRooms.delete(id);
     this.state.bullets = this.state.bullets.filter((bullet) => bullet.ownerId !== id);
     this.state.temporaryWalls = this.state.temporaryWalls.filter((wall) => wall.ownerId !== id);
 
@@ -85,7 +200,8 @@ export class GameService {
 
     const playerCount = Object.keys(this.state.players).length;
     if (playerCount === 0) {
-      this.resetGame();
+      this.rooms.delete(this.activeRoomId);
+      if (this.rooms.size === 0) this.createRoom();
       return;
     }
 
@@ -98,11 +214,13 @@ export class GameService {
     }
 
     if (this.state.status === 'waiting') {
+      if (!this.hasHunter()) this.promoteFirstRunnerToHunter();
       this.tryStartGame();
     }
   }
 
   setPlayerName(id: string, name: string): void {
+    if (!this.activatePlayerRoom(id)) return;
     const player = this.state.players[id];
     if (!player) return;
 
@@ -111,6 +229,7 @@ export class GameService {
   }
 
   setPlayerInput(id: string, input: Partial<PlayerInput>): void {
+    if (!this.activatePlayerRoom(id)) return;
     const player = this.state.players[id];
     if (!player || !player.isAlive || this.state.status !== 'playing') return;
 
@@ -123,6 +242,7 @@ export class GameService {
   }
 
   usePower(playerId: string, power: PowerType): void {
+    if (!this.activatePlayerRoom(playerId)) return;
     const player = this.state.players[playerId];
     if (!player || !player.isAlive || this.state.status !== 'playing') return;
     if (!rolePowers[player.role].includes(power)) return;
@@ -163,7 +283,24 @@ export class GameService {
     }
   }
 
-  update(deltaTime: number): GameOverPayload | null {
+  updateAll(deltaTime: number): RoomGameOverPayload[] {
+    const gameOvers: RoomGameOverPayload[] = [];
+
+    for (const roomId of this.getRoomIds()) {
+      this.activeRoomId = roomId;
+      const gameOver = this.updateActiveRoom(deltaTime);
+      if (gameOver) gameOvers.push({ roomId, gameOver });
+    }
+
+    return gameOvers;
+  }
+
+  updateRoom(roomId: string, deltaTime: number): GameOverPayload | null {
+    if (!this.activateRoom(roomId)) return null;
+    return this.updateActiveRoom(deltaTime);
+  }
+
+  private updateActiveRoom(deltaTime: number): GameOverPayload | null {
     if (this.state.status !== 'playing') return null;
 
     const now = Date.now();
@@ -189,7 +326,9 @@ export class GameService {
     return this.checkEndGame();
   }
 
-  getState(): GameState {
+  getState(roomId?: string): GameState {
+    if (roomId) this.activateRoom(roomId);
+
     return {
       ...this.state,
       players: { ...this.state.players },
@@ -201,7 +340,7 @@ export class GameService {
     };
   }
 
-  getPublicState() {
+  getPublicState(roomId?: string) {
     const {
       players,
       items,
@@ -214,9 +353,14 @@ export class GameService {
       status,
       winnerId,
       winnerTeam,
-    } = this.getState();
+    } = this.getState(roomId);
 
-    return { players, items, bullets, temporaryWalls, events, zone, duration, startedAt, status, winnerId, winnerTeam };
+    return { roomId: this.activeRoomId, players, items, bullets, temporaryWalls, events, zone, duration, startedAt, status, winnerId, winnerTeam };
+  }
+
+  resetRoom(roomId: string): void {
+    if (!this.activateRoom(roomId)) return;
+    this.resetGame();
   }
 
   resetGame(): void {

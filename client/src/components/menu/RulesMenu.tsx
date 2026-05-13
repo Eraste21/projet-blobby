@@ -14,11 +14,11 @@ export function RulesMenu({ onBack }: RulesMenuProps) {
         </div>
 
         <ul className="space-y-4 text-slate-300">
-          <li><span className="font-bold text-red-300">Chasseur rouge :</span> attrape le fuyard avant la fin du timer.</li>
-          <li><span className="font-bold text-sky-300">Fuyard bleu :</span> survit jusqu’à la fin du timer.</li>
+          <li><span className="font-bold text-red-300">Chasseur rouge :</span> attrape tous les fuyards avant la fin du timer.</li>
+          <li><span className="font-bold text-sky-300">Fuyards bleus :</span> survivent jusqu’à la fin du timer.</li>
           <li>Les déplacements sont <span className="text-white">Z (haut) - Q (gauche) - S (bas) - D (droite)</span>.</li>
           <li><span className="text-red-300 font-bold">Chasseur :</span> A = dash, E = radar, R = tir rapide (ralentit le fuyard).</li>
-          <li><span className="text-sky-300 font-bold">Fuyard :</span> A = invisibilité, E = freeze, R = mur.</li>
+          <li><span className="text-sky-300 font-bold">Fuyard :</span> A = invisibilité, E = freeze, R = mur derrière toi.</li>
           <li>Les soins (items verts) restaurent la vie, les bonus (items jaunes) donnent un boost de vitesse temporaire.</li>
           <li>La zone safe se réduit et des dégâts sont infligés hors zone.</li>
           <li>Appuie sur <span className="text-white">Échap</span> pendant la partie pour ouvrir le menu pause.</li>

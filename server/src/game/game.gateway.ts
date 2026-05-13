@@ -25,7 +25,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   private lastUpdate = Date.now();
   private gameLoop?: NodeJS.Timeout;
 
-  constructor(private readonly gameService: GameService) { }
+  constructor(private readonly gameService: GameService) {}
 
   afterInit(): void {
     const interval = 1000 / gameConfig.tickRate;
@@ -35,11 +35,14 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const deltaTime = (now - this.lastUpdate) / 1000;
       this.lastUpdate = now;
 
-      const gameOver = this.gameService.update(deltaTime);
-      this.server.emit('game:state', this.gameService.getPublicState());
+      const gameOvers = this.gameService.updateAll(deltaTime);
 
-      if (gameOver) {
-        this.server.emit('game:over', gameOver);
+      for (const roomId of this.gameService.getRoomIds()) {
+        this.server.to(roomId).emit('game:state', this.gameService.getPublicState(roomId));
+      }
+
+      for (const { roomId, gameOver } of gameOvers) {
+        this.server.to(roomId).emit('game:over', gameOver);
       }
     }, interval);
   }
@@ -47,27 +50,44 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   handleConnection(client: Socket): void {
     const player = this.gameService.addPlayer(client.id);
 
-    client.emit('connected', {
-      id: client.id,
-      message: 'Connexion au serveur Blobby réussie',
-    });
-
     if (!player) {
       client.emit('game:joinRejected', {
-        reason: 'La partie est déjà complète : Blobby se joue en duel, 1 chasseur contre 1 fuyard.',
+        reason: 'Impossible de rejoindre une partie pour le moment. Réessaie dans quelques secondes.',
       });
       client.disconnect(true);
       return;
     }
 
-    this.server.emit('game:state', this.gameService.getPublicState());
+    const roomId = this.gameService.getPlayerRoomId(client.id);
+
+    if (!roomId) {
+      client.emit('game:joinRejected', {
+        reason: 'Erreur de matchmaking. Réessaie dans quelques secondes.',
+      });
+      client.disconnect(true);
+      return;
+    }
+
+    client.join(roomId);
+
+    client.emit('connected', {
+      id: client.id,
+      roomId,
+      role: player.role,
+      message: 'Connexion au serveur Blobby réussie',
+    });
+
+    this.server.to(roomId).emit('game:state', this.gameService.getPublicState(roomId));
   }
 
   handleDisconnect(client: Socket): void {
+    const roomId = this.gameService.getPlayerRoomId(client.id);
     this.gameService.removePlayer(client.id);
-    this.server.emit('game:state', this.gameService.getPublicState());
-  }
 
+    if (roomId) {
+      this.server.to(roomId).emit('game:state', this.gameService.getPublicState(roomId));
+    }
+  }
 
   @SubscribeMessage('player:profile')
   handlePlayerProfile(
@@ -75,7 +95,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @ConnectedSocket() client: Socket,
   ): void {
     this.gameService.setPlayerName(client.id, profile.name ?? 'Joueur');
-    this.server.emit('game:state', this.gameService.getPublicState());
+    this.emitPlayerRoomState(client);
   }
 
   @SubscribeMessage('player:input')
@@ -86,7 +106,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     this.gameService.setPlayerInput(client.id, input);
   }
 
-
   @SubscribeMessage('player:usePower')
   handleUsePower(
     @MessageBody() data: { power?: PowerType },
@@ -94,13 +113,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   ): void {
     if (!data.power) return;
     this.gameService.usePower(client.id, data.power);
-    this.server.emit('game:state', this.gameService.getPublicState());
+    this.emitPlayerRoomState(client);
   }
 
   @SubscribeMessage('game:restart')
-  handleGameRestart(): void {
-    this.gameService.resetGame();
-    this.server.emit('game:state', this.gameService.getPublicState());
+  handleGameRestart(@ConnectedSocket() client: Socket): void {
+    const roomId = this.gameService.getPlayerRoomId(client.id);
+    if (!roomId) return;
+
+    this.gameService.resetRoom(roomId);
+    this.server.to(roomId).emit('game:state', this.gameService.getPublicState(roomId));
   }
 
   @SubscribeMessage('ping')
@@ -109,5 +131,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       message: 'Réponse du serveur',
       received: data,
     });
+  }
+
+  private emitPlayerRoomState(client: Socket): void {
+    const roomId = this.gameService.getPlayerRoomId(client.id);
+    if (!roomId) return;
+    this.server.to(roomId).emit('game:state', this.gameService.getPublicState(roomId));
   }
 }
