@@ -25,8 +25,17 @@ export class GameService {
   private nextHealSpawnAt = 0;
   private nextSpeedSpawnAt = 0;
 
-  addPlayer(id: string): Player {
-    if (this.state.status === 'finished') {
+  addPlayer(id: string): Player | null {
+    const existingPlayer = this.state.players[id];
+    if (existingPlayer) return existingPlayer;
+
+    const players = Object.values(this.state.players);
+
+    if (players.length >= gameConfig.maxPlayers) {
+      return null;
+    }
+
+    if (this.state.status === 'finished' && players.length === 0) {
       this.resetGame();
     }
 
@@ -80,13 +89,15 @@ export class GameService {
       return;
     }
 
-    if (!this.hasHunter()) {
-      this.promoteFirstRunnerToHunter();
+    if (this.state.status === 'playing' && removed) {
+      const remainingPlayer = Object.values(this.state.players).find((player) => player.isAlive);
+      if (remainingPlayer) {
+        this.finishGame(remainingPlayer.id, remainingPlayer.role, 'opponent-left');
+      }
+      return;
     }
 
-    if (this.state.status === 'playing') {
-      this.checkEndGame();
-    } else {
+    if (this.state.status === 'waiting') {
       this.tryStartGame();
     }
   }
@@ -270,14 +281,19 @@ export class GameService {
     if (this.state.status !== 'waiting') return;
 
     const players = Object.values(this.state.players);
-    const hasHunter = players.some((player) => player.role === 'hunter');
-    const hasRunner = players.some((player) => player.role === 'runner');
+    const hunters = players.filter((player) => player.role === 'hunter');
+    const runners = players.filter((player) => player.role === 'runner');
 
-    if (players.length >= gameConfig.minimumPlayersToStart && hasHunter && hasRunner) {
+    if (
+      players.length === gameConfig.maxPlayers &&
+      players.length === gameConfig.minimumPlayersToStart &&
+      hunters.length === 1 &&
+      runners.length === 1
+    ) {
       this.state.status = 'playing';
       this.state.startedAt = Date.now();
       this.spawnInitialItems();
-      this.pushEvent('system', 'La partie commence : survivez ou chassez !');
+      this.pushEvent('system', 'La partie commence : duel 1 chasseur contre 1 fuyard !');
     }
   }
 
@@ -731,21 +747,21 @@ export class GameService {
 
     const players = Object.values(this.state.players);
     const hunter = players.find((player) => player.role === 'hunter');
-    const aliveHunter = hunter?.isAlive ? hunter : null;
-    const aliveRunners = players.filter((player) => player.role === 'runner' && player.isAlive);
+    const runner = players.find((player) => player.role === 'runner');
     const elapsed = (Date.now() - this.state.startedAt) / 1000;
 
-    if (!aliveHunter) {
-      const winner = aliveRunners[0] ?? null;
-      return this.finishGame(winner?.id ?? null, 'runner', 'hunter-dead');
+    if (!hunter || !runner) return null;
+
+    if (!hunter.isAlive) {
+      return this.finishGame(runner.id, 'runner', 'hunter-dead');
     }
 
-    if (aliveRunners.length === 0) {
-      return this.finishGame(aliveHunter.id, 'hunter', 'all-runners-caught');
+    if (!runner.isAlive) {
+      return this.finishGame(hunter.id, 'hunter', 'runner-caught');
     }
 
     if (elapsed >= this.state.duration) {
-      return this.finishGame(aliveRunners[0]?.id ?? null, 'runner', 'timer-ended');
+      return this.finishGame(runner.id, 'runner', 'timer-ended');
     }
 
     return null;
@@ -760,7 +776,7 @@ export class GameService {
       player.input = this.emptyInput();
     });
 
-    this.pushEvent('system', winnerTeam === 'hunter' ? 'Victoire du chasseur !' : 'Victoire des fuyards !');
+    this.pushEvent('system', winnerTeam === 'hunter' ? 'Victoire du chasseur !' : 'Victoire du fuyard !');
     return { winnerId, winnerTeam, reason };
   }
 

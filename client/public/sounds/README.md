@@ -1,9 +1,5 @@
 # Sons Blobby
 
-Place tes fichiers audio directement dans ce dossier.
-
-Noms attendus par le code :
-
 - `shoot.mp3` : tir rapide du chasseur
 - `dash.mp3` : dash du chasseur
 - `radar.mp3` : radar du chasseur
@@ -17,5 +13,3 @@ Noms attendus par le code :
 - `defeat.mp3` : défaite
 - `click.mp3` : clic de menu
 - `background.mp3` : musique de fond
-
-Tu peux garder seulement les fichiers dont tu as besoin. Si un fichier manque, le jeu continue sans erreur.

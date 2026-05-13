@@ -25,7 +25,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   private lastUpdate = Date.now();
   private gameLoop?: NodeJS.Timeout;
 
-  constructor(private readonly gameService: GameService) {}
+  constructor(private readonly gameService: GameService) { }
 
   afterInit(): void {
     const interval = 1000 / gameConfig.tickRate;
@@ -45,12 +45,20 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   handleConnection(client: Socket): void {
-    this.gameService.addPlayer(client.id);
+    const player = this.gameService.addPlayer(client.id);
 
     client.emit('connected', {
       id: client.id,
       message: 'Connexion au serveur Blobby réussie',
     });
+
+    if (!player) {
+      client.emit('game:joinRejected', {
+        reason: 'La partie est déjà complète : Blobby se joue en duel, 1 chasseur contre 1 fuyard.',
+      });
+      client.disconnect(true);
+      return;
+    }
 
     this.server.emit('game:state', this.gameService.getPublicState());
   }

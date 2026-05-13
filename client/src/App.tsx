@@ -17,6 +17,7 @@ function App() {
   const [playerName, setPlayerName] = useState('Joueur');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [result, setResult] = useState('');
+  const [joinError, setJoinError] = useState('');
   const [history, setHistory] = useState<MatchHistoryEntry[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('blobby-history') ?? '[]') as MatchHistoryEntry[];
@@ -29,6 +30,7 @@ function App() {
   const backToMenu = () => {
     socket.disconnect();
     setResult('');
+    setJoinError('');
     setScreen('main');
   };
 
@@ -69,7 +71,10 @@ function App() {
       <MainMenu
         playerName={playerName}
         onPlayerNameChange={setPlayerName}
-        onPlay={() => setScreen('lobby')}
+        onPlay={() => {
+          setJoinError('');
+          setScreen('lobby');
+        }}
         onRules={() => openScreen('rules')}
         onSettings={() => openScreen('settings')}
         onScores={() => openScreen('scores')}
@@ -96,7 +101,17 @@ function App() {
   }
 
   if (screen === 'lobby') {
-    return <LobbyMenu playerName={playerName} onStart={() => setScreen('playing')} onBack={backToMenu} />;
+    return (
+      <LobbyMenu
+        playerName={playerName}
+        errorMessage={joinError}
+        onStart={() => {
+          setJoinError('');
+          setScreen('playing');
+        }}
+        onBack={backToMenu}
+      />
+    );
   }
 
   if (screen === 'ended') {
@@ -110,6 +125,11 @@ function App() {
           playerName={playerName}
           paused={screen === 'paused'}
           onPause={() => setScreen('paused')}
+          onJoinRejected={(message) => {
+            socket.disconnect();
+            setJoinError(message);
+            setScreen('lobby');
+          }}
           onGameOver={(gameResult) => {
             setResult(gameResult);
             saveMatchResult(gameResult);

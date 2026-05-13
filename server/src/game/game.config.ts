@@ -15,6 +15,7 @@ export const gameConfig = {
   runnerColor: '#00aaff',
   hunterDamageOnCatch: 100,
   minimumPlayersToStart: 2,
+  maxPlayers: 2,
 };
 
 export const spawnPoints = {

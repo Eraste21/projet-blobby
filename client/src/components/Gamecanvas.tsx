@@ -27,6 +27,7 @@ type GameCanvasProps = CanvasHTMLAttributes<HTMLCanvasElement> & {
   paused?: boolean;
   onPause?: () => void;
   onGameOver?: (result: string) => void;
+  onJoinRejected?: (message: string) => void;
 };
 
 const defaultGameState: GameState = {
@@ -127,12 +128,14 @@ export const GameCanvas = ({
   paused = false,
   onPause,
   onGameOver,
+  onJoinRejected,
   ...props
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pausedRef = useRef(paused);
   const onPauseRef = useRef(onPause);
   const onGameOverRef = useRef(onGameOver);
+  const onJoinRejectedRef = useRef(onJoinRejected);
   const playerNameRef = useRef(playerName);
   const serverStateRef = useRef<GameState>(defaultGameState);
   const mySocketIdRef = useRef('');
@@ -151,6 +154,10 @@ export const GameCanvas = ({
   useEffect(() => {
     onGameOverRef.current = onGameOver;
   }, [onGameOver]);
+
+  useEffect(() => {
+    onJoinRejectedRef.current = onJoinRejected;
+  }, [onJoinRejected]);
 
   useEffect(() => {
     playerNameRef.current = playerName;
@@ -263,6 +270,11 @@ export const GameCanvas = ({
       }
     };
 
+    const handleJoinRejected = (data: { reason?: string }) => {
+      stopBackgroundMusic();
+      onJoinRejectedRef.current?.(data.reason ?? 'La partie est déjà complète.');
+    };
+
     const handleGameOver = (payload: GameOverPayload) => {
       serverState = {
         ...serverState,
@@ -294,6 +306,7 @@ export const GameCanvas = ({
 
     socket.on('connected', handleConnected);
     socket.on('game:state', handleGameState);
+    socket.on('game:joinRejected', handleJoinRejected);
     socket.on('game:over', handleGameOver);
 
     function screen() {
@@ -333,7 +346,7 @@ export const GameCanvas = ({
         ctx.textAlign = 'center';
         ctx.fillText('En attente d’au moins 2 joueurs', window.innerWidth / 2, window.innerHeight / 2);
         ctx.font = `500 ${window.innerWidth < 700 ? 12 : 18}px Orbitron, Arial`;
-        ctx.fillText('1 chasseur rouge contre 1 ou plusieurs fuyards bleus', window.innerWidth / 2, window.innerHeight / 2 + 38);
+        ctx.fillText('Duel : 1 chasseur rouge contre 1 fuyard bleu', window.innerWidth / 2, window.innerHeight / 2 + 38);
         ctx.restore();
       }
 
@@ -359,6 +372,7 @@ export const GameCanvas = ({
       window.removeEventListener('keyup', keyUp);
       socket.off('connected', handleConnected);
       socket.off('game:state', handleGameState);
+      socket.off('game:joinRejected', handleJoinRejected);
       socket.off('game:over', handleGameOver);
       stopBackgroundMusic();
       socket.disconnect();
