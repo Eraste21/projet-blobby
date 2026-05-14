@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CanvasHTMLAttributes, type PointerEvent } from 'react';
 import { camera, game, keys, map, particles, stars, walls } from './game/config';
 import { drawWalls } from './game/drawWalls';
+import { getCanvasTheme } from './game/canvasTheme';
 import { drawItems } from './game/drawItems';
 import { drawBullets, drawEventFeed, drawMatchHud, drawPowerHud, drawRadarArrow, drawTemporaryWalls } from './game/drawPowerObjects';
 import { drawPlayers } from './game/drawPlayer';
@@ -59,7 +60,7 @@ function getResultText(state: GameState, mySocketId: string) {
   if (!state.winnerTeam || !myPlayer) return 'Fin de partie';
 
   const hasWon = myPlayer.role === state.winnerTeam;
-  const teamLabel = state.winnerTeam === 'hunter' ? 'Le chasseur gagne' : 'Les fuyards gagnent';
+  const teamLabel = state.winnerTeam === 'hunter' ? 'Le chasseur a gagné' : 'Le fuyard a gagné';
 
   return hasWon ? `Victoire - ${teamLabel}` : `Défaite - ${teamLabel}`;
 }
@@ -348,10 +349,12 @@ export const GameCanvas = ({
       drawTimer(serverState.startedAt, serverState.duration, ctx, screenSize);
 
       if (serverState.status === 'waiting') {
+        const canvasTheme = getCanvasTheme();
+
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+        ctx.fillStyle = canvasTheme.isLight ? 'rgba(255, 255, 255, 0.50)' : 'rgba(0, 0, 0, 0.38)';
         ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = canvasTheme.mapForeground;
         ctx.font = `700 ${window.innerWidth < 700 ? 22 : 32}px Orbitron, Arial`;
         ctx.textAlign = 'center';
         ctx.fillText('En attente d’au moins 2 joueurs', window.innerWidth / 2, window.innerHeight / 2);

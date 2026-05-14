@@ -1,3 +1,5 @@
+import { getCanvasTheme } from './canvasTheme';
+
 export function drawTimer(
   serverStartedAt: number | null,
   duration: number,
@@ -10,17 +12,19 @@ export function drawTimer(
   const x = canvas.width / 2 - width / 2;
   const y = isSmall ? 12 : 18;
 
+  const theme = getCanvasTheme();
+
   ctx.save();
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 0.72;
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.54)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillStyle = theme.panelBackground;
+  ctx.strokeStyle = theme.panelBorder;
   ctx.beginPath();
   ctx.roundRect(x, y, width, height, 13);
   ctx.fill();
   ctx.stroke();
   ctx.globalAlpha = 1;
-  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.fillStyle = theme.panelText;
   ctx.font = `700 ${isSmall ? 14 : 16}px Orbitron, Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

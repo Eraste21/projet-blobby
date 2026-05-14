@@ -8,8 +8,8 @@ export const map = {
 export const gameConfig = {
   duration: 150,
   tickRate: 60,
-  runnerSpeed: 11,
-  hunterSpeed: 12.5,
+  runnerSpeed: 13,
+  hunterSpeed: 14.5,
   playerRadius: 25,
   hunterColor: '#ff2b2b',
   runnerColor: '#00aaff',

@@ -1,13 +1,18 @@
 import type { Camera, Star } from './types';
 import type { Viewport } from './viewport';
+import { getCanvasTheme } from './canvasTheme';
 
 const TILE_SIZE = 512;
 const tileCache = new Map<string, HTMLCanvasElement>();
 let cachedStars: Star[] | null = null;
+let cachedThemeMode: 'light' | 'dark' | null = null;
 
-function buildStarTiles(stars: Star[]) {
+function buildStarTiles(stars: Star[], themeMode: 'light' | 'dark') {
+  const theme = getCanvasTheme();
+
   tileCache.clear();
   cachedStars = stars;
+  cachedThemeMode = themeMode;
 
   stars.forEach((star) => {
     const tileX = Math.floor(star.x / TILE_SIZE);
@@ -26,7 +31,7 @@ function buildStarTiles(stars: Star[]) {
     if (!tileCtx) return;
 
     tileCtx.beginPath();
-    tileCtx.fillStyle = 'white';
+    tileCtx.fillStyle = theme.mapForeground;
     tileCtx.shadowBlur = 0;
     tileCtx.arc(star.x - tileX * TILE_SIZE, star.y - tileY * TILE_SIZE, star.r, 0, 2 * Math.PI);
     tileCtx.fill();
@@ -34,8 +39,10 @@ function buildStarTiles(stars: Star[]) {
 }
 
 export function drawStars(ctx: CanvasRenderingContext2D, stars: Star[], camera: Camera, viewport: Viewport) {
-  if (cachedStars !== stars || tileCache.size === 0) {
-    buildStarTiles(stars);
+  const themeMode = getCanvasTheme().isLight ? 'light' : 'dark';
+
+  if (cachedStars !== stars || cachedThemeMode !== themeMode || tileCache.size === 0) {
+    buildStarTiles(stars, themeMode);
   }
 
   const firstTileX = Math.floor(viewport.x / TILE_SIZE);

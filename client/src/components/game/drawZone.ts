@@ -2,6 +2,7 @@ import type { Camera, GameZone } from './types';
 import type { Viewport } from './viewport';
 import { isCircleVisible } from './viewport';
 import { shadowBlur } from './renderQuality';
+import { getCanvasTheme } from './canvasTheme';
 
 export function drawDangerZone(
   ctx: CanvasRenderingContext2D,
@@ -10,6 +11,8 @@ export function drawDangerZone(
   canvas: HTMLCanvasElement,
   viewport?: Viewport,
 ) {
+  const theme = getCanvasTheme();
+
   ctx.save();
 
   const zoneScreenX = zone.x - camera.x;
@@ -18,7 +21,7 @@ export function drawDangerZone(
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
   ctx.arc(zoneScreenX, zoneScreenY, zone.r, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(224, 247, 255, 0.12)';
+  ctx.fillStyle = theme.mapOverlay;
   ctx.fill('evenodd');
   ctx.restore();
 
@@ -27,9 +30,9 @@ export function drawDangerZone(
   ctx.save();
   ctx.beginPath();
   ctx.arc(zoneScreenX, zoneScreenY, zone.r, 0, Math.PI * 2);
-  ctx.strokeStyle = '#e0f7ff';
+  ctx.strokeStyle = theme.mapForegroundSoft;
   ctx.lineWidth = 4;
-  ctx.shadowColor = '#e0f7ff';
+  ctx.shadowColor = theme.mapForegroundSoft;
   ctx.shadowBlur = shadowBlur(25 + Math.sin(performance.now() * 0.006) * 10, 0);
   ctx.stroke();
   ctx.restore();

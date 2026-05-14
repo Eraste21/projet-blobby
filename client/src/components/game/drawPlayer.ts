@@ -2,6 +2,7 @@ import type { Camera, Player } from './types';
 import type { Viewport } from './viewport';
 import { isCircleVisible } from './viewport';
 import { shadowBlur } from './renderQuality';
+import { getCanvasTheme } from './canvasTheme';
 
 function shouldBlink(player: Player, now: number) {
   const hitUntil = player.hitUntil ?? 0;
@@ -19,6 +20,7 @@ export function drawPlayers(
   viewport: Viewport,
 ) {
   const now = Date.now();
+  const theme = getCanvasTheme();
 
   const myPlayer = players[myPlayerId];
 
@@ -52,7 +54,7 @@ export function drawPlayers(
 
     if (blinking) {
       ctx.globalAlpha = 0.8;
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeStyle = theme.isLight ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.9)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(screenX, screenY, player.r + 3, 0, Math.PI * 2);
@@ -61,7 +63,7 @@ export function drawPlayers(
 
     ctx.globalAlpha = player.isInvisible && isMe ? 0.35 : 1;
     ctx.font = '700 12px Orbitron, Arial';
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = theme.mapForeground;
     ctx.textAlign = 'center';
     ctx.fillText(label, screenX, screenY - player.r - 12);
 
