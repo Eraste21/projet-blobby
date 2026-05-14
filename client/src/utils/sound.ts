@@ -13,6 +13,8 @@ export type SoundName =
   | 'click'
   | 'background';
 
+const SOUND_ENABLED_KEY = 'blobby-sound-enabled';
+
 const soundPaths: Record<SoundName, string> = {
   shoot: '/sounds/shoot.mp3',
   dash: '/sounds/dash.mp3',
@@ -30,9 +32,25 @@ const soundPaths: Record<SoundName, string> = {
 };
 
 const cache = new Map<SoundName, HTMLAudioElement>();
-let soundEnabled = true;
+const activeSounds = new Set<HTMLAudioElement>();
+
+let soundEnabled = readSavedSoundPreference();
 let masterVolume = 0.55;
 let backgroundMusic: HTMLAudioElement | null = null;
+
+function readSavedSoundPreference() {
+  try {
+    return localStorage.getItem(SOUND_ENABLED_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function saveSoundPreference(enabled: boolean) {
+  try {
+    localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
+  } catch {}
+}
 
 function getAudio(name: SoundName) {
   const cached = cache.get(name);
@@ -40,14 +58,34 @@ function getAudio(name: SoundName) {
 
   const audio = new Audio(soundPaths[name]);
   audio.preload = 'auto';
+  audio.volume = masterVolume;
+  audio.muted = !soundEnabled;
   cache.set(name, audio);
   return audio;
 }
 
+function stopActiveSounds() {
+  activeSounds.forEach((audio) => {
+    audio.pause();
+    audio.currentTime = 0;
+  });
+  activeSounds.clear();
+}
+
+export function getSoundEnabled() {
+  return soundEnabled;
+}
+
 export function setSoundEnabled(enabled: boolean) {
   soundEnabled = enabled;
+  saveSoundPreference(enabled);
+
+  cache.forEach((audio) => {
+    audio.muted = !enabled;
+  });
 
   if (!enabled) {
+    stopActiveSounds();
     stopBackgroundMusic();
   }
 }
@@ -56,6 +94,10 @@ export function setMasterVolume(volume: number) {
   masterVolume = Math.max(0, Math.min(1, volume));
 
   cache.forEach((audio) => {
+    audio.volume = masterVolume;
+  });
+
+  activeSounds.forEach((audio) => {
     audio.volume = masterVolume;
   });
 
@@ -70,9 +112,17 @@ export function playSound(name: SoundName, volume = 1) {
   try {
     const baseSound = getAudio(name);
     const sound = baseSound.cloneNode(true) as HTMLAudioElement;
+
+    sound.muted = !soundEnabled;
     sound.volume = Math.max(0, Math.min(1, masterVolume * volume));
     sound.currentTime = 0;
+
+    activeSounds.add(sound);
+    sound.addEventListener('ended', () => activeSounds.delete(sound), { once: true });
+    sound.addEventListener('pause', () => activeSounds.delete(sound), { once: true });
+
     void sound.play().catch(() => {
+      activeSounds.delete(sound);
       // Les navigateurs bloquent le son tant que l'utilisateur n'a pas interagi avec la page.
     });
   } catch {
@@ -89,6 +139,7 @@ export function playBackgroundMusic() {
       backgroundMusic.loop = true;
     }
 
+    backgroundMusic.muted = !soundEnabled;
     backgroundMusic.volume = Math.min(0.28, masterVolume * 0.45);
     void backgroundMusic.play().catch(() => {});
   } catch {}

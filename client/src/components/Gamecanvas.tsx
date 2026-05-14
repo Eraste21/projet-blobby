@@ -60,7 +60,7 @@ function getResultText(state: GameState, mySocketId: string) {
   if (!state.winnerTeam || !myPlayer) return 'Fin de partie';
 
   const hasWon = myPlayer.role === state.winnerTeam;
-  const teamLabel = state.winnerTeam === 'hunter' ? 'Le chasseur a gagné' : 'Le fuyard a gagné';
+  const teamLabel = state.winnerTeam === 'hunter' ? 'Le chasseur gagne' : 'Les fuyards gagnent';
 
   return hasWon ? `Victoire - ${teamLabel}` : `Défaite - ${teamLabel}`;
 }

@@ -10,6 +10,7 @@ import { SettingsMenu, type ThemeMode } from './components/menu/SettingsMenu';
 import { ScoreMenu, type MatchHistoryEntry } from './components/menu/ScoreMenu';
 import { routeToScreen, screenToRoute, useCurrentRoute, useNavigate, type Screen } from './router/useNavigate';
 import { socket } from './socket';
+import { getSoundEnabled, setSoundEnabled as applySoundEnabled } from './utils/sound';
 
 function App() {
   const route = useCurrentRoute();
@@ -17,7 +18,7 @@ function App() {
   const screen = routeToScreen(route);
   const [previousScreen, setPreviousScreen] = useState<Screen>('main');
   const [playerName, setPlayerName] = useState('Joueur');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const savedTheme = localStorage.getItem('blobby-theme');
     return savedTheme === 'light' ? 'light' : 'dark';
@@ -32,6 +33,11 @@ function App() {
     }
   });
   const isGameMounted = screen === 'playing' || screen === 'paused';
+
+
+  useEffect(() => {
+    applySoundEnabled(soundEnabled);
+  }, [soundEnabled]);
 
   useEffect(() => {
     document.body.classList.toggle('blobby-light', themeMode === 'light');
@@ -122,7 +128,7 @@ function App() {
         <SettingsMenu
           soundEnabled={soundEnabled}
           themeMode={themeMode}
-          onToggleSound={() => setSoundEnabled((value) => !value)}
+          onToggleSound={() => setSoundEnabledState((value) => !value)}
           onToggleTheme={() => setThemeMode((value) => (value === 'dark' ? 'light' : 'dark'))}
           onBack={() => goToScreen(previousScreen === 'paused' ? 'paused' : 'main')}
         />
