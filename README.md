@@ -116,6 +116,11 @@ Ouvrir le navigateur à l’adresse indiquée par Vite, généralement :
 ```txt
 http://localhost:5173
 ```
+Ou sur :
+```txt
+http://localhost:4173
+```
+si utilisation de docker-compose
 
 ---
 
@@ -228,12 +233,7 @@ npm run build
 
 ---
 
-## Déploiement
+## Auteur
 
-Le jeu est prévu pour être hébergé en ligne.
-
-Le frontend peut être déployé sur une plateforme comme Vercel, Netlify ou Render.
-
-Le backend peut être déployé sur une plateforme compatible Node.js comme Render, Railway ou Fly.io.
-
----
+Projet réalisé dans le cadre du projet JavaScript.
+  - Eraste KONAN
