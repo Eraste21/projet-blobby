@@ -32,7 +32,7 @@ export const walls: Wall[] = [
 ];
 
 export const stars: Star[] = [];
-for (let i = 0; i < 700; i += 1) {
+for (let i = 0; i < 320; i += 1) {
   stars.push({
     x: Math.random() * map.width,
     y: Math.random() * map.height,

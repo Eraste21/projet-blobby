@@ -94,27 +94,54 @@ canvas {
     background: rgba(56, 189, 248, 0.40);
   }
 
-  .mobile-dpad {
-    display: grid;
-    grid-template-areas:
-      ". up ."
-      "left down right";
-    grid-template-columns: repeat(3, 46px);
-    grid-template-rows: repeat(2, 46px);
-    gap: 8px;
+  .mobile-joystick {
+    pointer-events: auto;
+    position: relative;
+    width: 118px;
+    height: 118px;
+    border-radius: 999px;
+    border: 1px solid rgba(125, 211, 252, 0.22);
+    background:
+      radial-gradient(circle at center, rgba(56, 189, 248, 0.16), rgba(15, 23, 42, 0.42) 58%, rgba(2, 6, 23, 0.52));
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    touch-action: none;
+    user-select: none;
   }
 
-  .mobile-control {
-    width: 46px;
-    height: 46px;
-    border-radius: 16px;
-    font: 900 13px Orbitron, Arial, sans-serif;
+  .mobile-joystick::before,
+  .mobile-joystick::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    transform: translate(-50%, -50%);
   }
 
-  .mobile-control.up { grid-area: up; }
-  .mobile-control.left { grid-area: left; }
-  .mobile-control.down { grid-area: down; }
-  .mobile-control.right { grid-area: right; }
+  .mobile-joystick::before {
+    width: 58%;
+    height: 1px;
+  }
+
+  .mobile-joystick::after {
+    width: 1px;
+    height: 58%;
+  }
+
+  .mobile-joystick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: rgba(14, 165, 233, 0.46);
+    box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.12), 0 10px 24px rgba(0, 0, 0, 0.26);
+    touch-action: none;
+    will-change: transform;
+  }
 
   .mobile-powers {
     display: flex;
@@ -153,15 +180,14 @@ canvas {
     padding: 0 10px;
   }
 
-  .mobile-dpad {
-    grid-template-columns: repeat(3, 41px);
-    grid-template-rows: repeat(2, 41px);
-    gap: 6px;
+  .mobile-joystick {
+    width: 104px;
+    height: 104px;
   }
 
-  .mobile-control {
-    width: 41px;
-    height: 41px;
+  .mobile-joystick-knob {
+    width: 46px;
+    height: 46px;
   }
 
   .mobile-powers button {

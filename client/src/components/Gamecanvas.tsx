@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CanvasHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type CanvasHTMLAttributes, type PointerEvent } from 'react';
 import { camera, game, keys, map, particles, stars, walls } from './game/config';
 import { drawWalls } from './game/drawWalls';
 import { drawItems } from './game/drawItems';
@@ -10,7 +10,9 @@ import { drawDangerZone } from './game/drawZone';
 import { updateCamera } from './game/camera';
 import { endScreen } from './game/endGame';
 import { drawTimer } from './game/drawTimer';
+import { getViewport } from './game/viewport';
 import { configMap } from './game/drawMap';
+import { updateRenderQuality } from './game/renderQuality';
 import { socket } from '../socket';
 import { playBackgroundMusic, playSound, stopBackgroundMusic } from '../utils/sound';
 import type { GameOverPayload, GameState, Player, PlayerRole, PowerType } from './game/types';
@@ -141,7 +143,10 @@ export const GameCanvas = ({
   const mySocketIdRef = useRef('');
   const knownEventIdsRef = useRef<Set<string>>(new Set());
   const firstStateReceivedRef = useRef(false);
+  const joystickRef = useRef<HTMLDivElement | null>(null);
+  const activeJoystickPointerRef = useRef<number | null>(null);
   const [mobileRole, setMobileRole] = useState<PlayerRole | null>(null);
+  const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -178,8 +183,10 @@ export const GameCanvas = ({
 
     const canvas: HTMLCanvasElement = currentCanvas;
     const ctx: CanvasRenderingContext2D = currentCtx;
+    canvas.style.touchAction = 'none';
 
     const resizeCanvas = () => {
+      updateRenderQuality();
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.floor(window.innerWidth * ratio);
       canvas.height = Math.floor(window.innerHeight * ratio);
@@ -318,24 +325,27 @@ export const GameCanvas = ({
         updateCamera(myPlayer, camera, map, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
       }
 
-      configMap(ctx, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
-      drawStars(ctx, stars, camera);
-      drawWalls(ctx, camera, walls);
-      drawTemporaryWalls(ctx, serverState.temporaryWalls, camera);
-      drawDangerZone(ctx, serverState.zone, camera, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
-      drawItems(ctx, serverState.items, camera);
-      drawBullets(ctx, serverState.bullets, camera);
-      drawRadarArrow(ctx, myPlayer, camera);
-      drawPlayers(ctx, serverState.players, camera, mySocketId);
-      drawParticles(ctx, particles, camera);
-      drawMatchHud(ctx, serverState.players, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
-      drawEventFeed(ctx, serverState.events, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
+      const screenSize = { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement;
+      const viewport = getViewport(camera, screenSize.width, screenSize.height);
+
+      configMap(ctx, screenSize);
+      drawStars(ctx, stars, camera, viewport);
+      drawWalls(ctx, camera, walls, viewport);
+      drawTemporaryWalls(ctx, serverState.temporaryWalls, camera, viewport);
+      drawDangerZone(ctx, serverState.zone, camera, screenSize, viewport);
+      drawItems(ctx, serverState.items, camera, viewport);
+      drawBullets(ctx, serverState.bullets, camera, viewport);
+      drawRadarArrow(ctx, myPlayer, camera, viewport);
+      drawPlayers(ctx, serverState.players, camera, mySocketId, viewport);
+      drawParticles(ctx, particles, camera, viewport);
+      drawMatchHud(ctx, serverState.players, screenSize);
+      drawEventFeed(ctx, serverState.events, screenSize);
 
       if (myPlayer) {
-        drawPowerHud(ctx, myPlayer, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
+        drawPowerHud(ctx, myPlayer, screenSize);
       }
 
-      drawTimer(serverState.startedAt, serverState.duration, ctx, { width: window.innerWidth, height: window.innerHeight } as HTMLCanvasElement);
+      drawTimer(serverState.startedAt, serverState.duration, ctx, screenSize);
 
       if (serverState.status === 'waiting') {
         ctx.save();
@@ -384,8 +394,54 @@ export const GameCanvas = ({
     };
   }, []);
 
-  const setMoveKey = (direction: keyof typeof MOBILE_CONTROL_KEYS, active: boolean) => {
-    keys[MOBILE_CONTROL_KEYS[direction]] = active;
+  const applyJoystickVector = (x: number, y: number) => {
+    const deadZone = 0.22;
+
+    keys[MOBILE_CONTROL_KEYS.up] = y < -deadZone;
+    keys[MOBILE_CONTROL_KEYS.down] = y > deadZone;
+    keys[MOBILE_CONTROL_KEYS.left] = x < -deadZone;
+    keys[MOBILE_CONTROL_KEYS.right] = x > deadZone;
+  };
+
+  const updateJoystickFromPointer = (event: PointerEvent<HTMLDivElement>) => {
+    const joystick = joystickRef.current;
+    if (!joystick) return;
+
+    event.preventDefault();
+
+    const rect = joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const maxDistance = rect.width * 0.34;
+    const rawX = event.clientX - centerX;
+    const rawY = event.clientY - centerY;
+    const distance = Math.hypot(rawX, rawY);
+    const limitedDistance = Math.min(distance, maxDistance);
+    const angle = Math.atan2(rawY, rawX);
+    const knobX = distance === 0 ? 0 : Math.cos(angle) * limitedDistance;
+    const knobY = distance === 0 ? 0 : Math.sin(angle) * limitedDistance;
+
+    setJoystickKnob({ x: knobX, y: knobY });
+    applyJoystickVector(knobX / maxDistance, knobY / maxDistance);
+  };
+
+  const startJoystick = (event: PointerEvent<HTMLDivElement>) => {
+    activeJoystickPointerRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateJoystickFromPointer(event);
+  };
+
+  const moveJoystick = (event: PointerEvent<HTMLDivElement>) => {
+    if (activeJoystickPointerRef.current !== event.pointerId) return;
+    updateJoystickFromPointer(event);
+  };
+
+  const stopJoystick = (event?: PointerEvent<HTMLDivElement>) => {
+    if (event && activeJoystickPointerRef.current !== event.pointerId) return;
+
+    activeJoystickPointerRef.current = null;
+    setJoystickKnob({ x: 0, y: 0 });
+    stopAllMobileMovement();
   };
 
   const useMobilePower = (power: PowerType) => {
@@ -408,12 +464,22 @@ export const GameCanvas = ({
         II
       </button>
 
-      <div className="mobile-controls" onPointerLeave={stopAllMobileMovement}>
-        <div className="mobile-dpad" aria-label="Contrôles de déplacement mobile">
-          <button type="button" className="mobile-control up" onPointerDown={() => setMoveKey('up', true)} onPointerUp={() => setMoveKey('up', false)} onPointerCancel={() => setMoveKey('up', false)}>Z</button>
-          <button type="button" className="mobile-control left" onPointerDown={() => setMoveKey('left', true)} onPointerUp={() => setMoveKey('left', false)} onPointerCancel={() => setMoveKey('left', false)}>Q</button>
-          <button type="button" className="mobile-control down" onPointerDown={() => setMoveKey('down', true)} onPointerUp={() => setMoveKey('down', false)} onPointerCancel={() => setMoveKey('down', false)}>S</button>
-          <button type="button" className="mobile-control right" onPointerDown={() => setMoveKey('right', true)} onPointerUp={() => setMoveKey('right', false)} onPointerCancel={() => setMoveKey('right', false)}>D</button>
+      <div className="mobile-controls">
+        <div
+          ref={joystickRef}
+          className="mobile-joystick"
+          role="application"
+          aria-label="Joystick de déplacement mobile"
+          onPointerDown={startJoystick}
+          onPointerMove={moveJoystick}
+          onPointerUp={stopJoystick}
+          onPointerCancel={stopJoystick}
+          onLostPointerCapture={() => stopJoystick()}
+        >
+          <div
+            className="mobile-joystick-knob"
+            style={{ transform: `translate(calc(-50% + ${joystickKnob.x}px), calc(-50% + ${joystickKnob.y}px))` }}
+          />
         </div>
 
         <div className="mobile-powers" aria-label="Pouvoirs mobile">

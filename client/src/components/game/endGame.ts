@@ -1,9 +1,11 @@
+import { shadowBlur } from './renderQuality';
+
 export function endScreen(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, result: string) {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.shadowColor = '#e0f7ff';
-  ctx.shadowBlur = 20;
+  ctx.shadowBlur = shadowBlur(20, 0);
   ctx.fillStyle = 'white';
   ctx.font = '700 48px Orbitron';
   ctx.textAlign = 'center';

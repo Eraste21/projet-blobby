@@ -1,4 +1,7 @@
 import type { Camera, Player } from './types';
+import type { Viewport } from './viewport';
+import { isCircleVisible } from './viewport';
+import { shadowBlur } from './renderQuality';
 
 function shouldBlink(player: Player, now: number) {
   const hitUntil = player.hitUntil ?? 0;
@@ -13,6 +16,7 @@ export function drawPlayers(
   players: Record<string, Player>,
   camera: Camera,
   myPlayerId: string,
+  viewport: Viewport,
 ) {
   const now = Date.now();
 
@@ -25,6 +29,7 @@ export function drawPlayers(
     const hiddenFromHunter = Boolean(myPlayer?.role === 'hunter' && player.role === 'runner' && player.isInvisible && !isMe);
 
     if (hiddenFromHunter) return;
+    if (!isCircleVisible(player.x, player.y, player.r, viewport, 140)) return;
 
     const screenX = player.x - camera.x;
     const screenY = player.y - camera.y;
@@ -40,7 +45,7 @@ export function drawPlayers(
 
     ctx.fillStyle = player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
     ctx.shadowColor = blinking ? '#ffffff' : player.color || (player.role === 'hunter' ? '#ff2b2b' : '#00aaff');
-    ctx.shadowBlur = blinking ? 22 : 50;
+    ctx.shadowBlur = blinking ? shadowBlur(22, 8) : shadowBlur(50, 0);
     ctx.fill();
 
     ctx.shadowBlur = 0;

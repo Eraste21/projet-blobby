@@ -1,23 +1,30 @@
 import type { Camera, GameBullet, GameEvent, Player, TemporaryWall } from './types';
+import type { Viewport } from './viewport';
+import { isCircleVisible, isRectVisible } from './viewport';
+import { shadowBlur } from './renderQuality';
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
 }
 
-export function drawTemporaryWalls(ctx: CanvasRenderingContext2D, temporaryWalls: TemporaryWall[], camera: Camera) {
+export function drawTemporaryWalls(ctx: CanvasRenderingContext2D, temporaryWalls: TemporaryWall[], camera: Camera, viewport: Viewport) {
   temporaryWalls.forEach((wall) => {
+    if (!isRectVisible(wall.x, wall.y, wall.width, wall.height, viewport, 120)) return;
+
     ctx.save();
     ctx.fillStyle = 'rgba(80, 180, 255, 0.75)';
     ctx.shadowColor = '#50b4ff';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = shadowBlur(12, 0);
     ctx.fillRect(wall.x - camera.x, wall.y - camera.y, wall.width, wall.height);
     ctx.restore();
   });
 }
 
-export function drawBullets(ctx: CanvasRenderingContext2D, bullets: GameBullet[], camera: Camera) {
+export function drawBullets(ctx: CanvasRenderingContext2D, bullets: GameBullet[], camera: Camera, viewport: Viewport) {
   bullets.forEach((bullet) => {
+    if (!isCircleVisible(bullet.x, bullet.y, bullet.r, viewport, 120)) return;
+
     const screenX = bullet.x - camera.x;
     const screenY = bullet.y - camera.y;
 
@@ -28,7 +35,7 @@ export function drawBullets(ctx: CanvasRenderingContext2D, bullets: GameBullet[]
     ctx.strokeStyle = '#ff7a00';
     ctx.lineWidth = 2;
     ctx.shadowColor = '#ffef6e';
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = shadowBlur(14, 0);
     ctx.fill();
     ctx.stroke();
 
@@ -42,8 +49,9 @@ export function drawBullets(ctx: CanvasRenderingContext2D, bullets: GameBullet[]
   });
 }
 
-export function drawRadarArrow(ctx: CanvasRenderingContext2D, player: Player | undefined, camera: Camera) {
+export function drawRadarArrow(ctx: CanvasRenderingContext2D, player: Player | undefined, camera: Camera, viewport?: Viewport) {
   if (!player?.radarTarget) return;
+  if (viewport && !isCircleVisible(player.x, player.y, player.r, viewport, 140)) return;
 
   const startX = player.x - camera.x;
   const startY = player.y - camera.y;
@@ -63,7 +71,7 @@ export function drawRadarArrow(ctx: CanvasRenderingContext2D, player: Player | u
   ctx.fillStyle = '#ffea00';
   ctx.lineWidth = 3;
   ctx.shadowColor = '#ffea00';
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = shadowBlur(12, 0);
 
   ctx.beginPath();
   ctx.moveTo(startX, startY);
