@@ -1,21 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GameCanvas } from './components/Gamecanvas';
 import { EndMenu } from './components/menu/EndMenu';
 import { LobbyMenu } from './components/menu/LobbyMenu';
 import { MainMenu } from './components/menu/MainMenu';
+import { PageTransition } from './components/menu/PageTransition';
 import { PauseMenu } from './components/menu/PauseMenu';
 import { RulesMenu } from './components/menu/RulesMenu';
-import { SettingsMenu } from './components/menu/SettingsMenu';
+import { SettingsMenu, type ThemeMode } from './components/menu/SettingsMenu';
 import { ScoreMenu, type MatchHistoryEntry } from './components/menu/ScoreMenu';
+import { routeToScreen, screenToRoute, useCurrentRoute, useNavigate, type Screen } from './router/useNavigate';
 import { socket } from './socket';
 
-type Screen = 'main' | 'rules' | 'settings' | 'scores' | 'lobby' | 'playing' | 'paused' | 'ended';
-
 function App() {
-  const [screen, setScreen] = useState<Screen>('main');
+  const route = useCurrentRoute();
+  const navigate = useNavigate();
+  const screen = routeToScreen(route);
   const [previousScreen, setPreviousScreen] = useState<Screen>('main');
   const [playerName, setPlayerName] = useState('Joueur');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    const savedTheme = localStorage.getItem('blobby-theme');
+    return savedTheme === 'light' ? 'light' : 'dark';
+  });
   const [result, setResult] = useState('');
   const [joinError, setJoinError] = useState('');
   const [history, setHistory] = useState<MatchHistoryEntry[]>(() => {
@@ -27,16 +33,26 @@ function App() {
   });
   const isGameMounted = screen === 'playing' || screen === 'paused';
 
+  useEffect(() => {
+    document.body.classList.toggle('blobby-light', themeMode === 'light');
+    document.body.classList.toggle('blobby-dark', themeMode === 'dark');
+    localStorage.setItem('blobby-theme', themeMode);
+  }, [themeMode]);
+
+  const goToScreen = (nextScreen: Screen, options?: { replace?: boolean }) => {
+    navigate(screenToRoute(nextScreen), options);
+  };
+
   const backToMenu = () => {
     socket.disconnect();
     setResult('');
     setJoinError('');
-    setScreen('main');
+    goToScreen('main');
   };
 
   const openScreen = (nextScreen: Screen) => {
     setPreviousScreen(screen);
-    setScreen(nextScreen);
+    goToScreen(nextScreen);
   };
 
   const saveMatchResult = (gameResult: string) => {
@@ -63,59 +79,79 @@ function App() {
     socket.emit('game:restart');
     socket.disconnect();
     setResult('');
-    setScreen('lobby');
+    goToScreen('lobby');
   };
 
   if (screen === 'main') {
     return (
-      <MainMenu
-        playerName={playerName}
-        onPlayerNameChange={setPlayerName}
-        onPlay={() => {
-          setJoinError('');
-          setScreen('lobby');
-        }}
-        onRules={() => openScreen('rules')}
-        onSettings={() => openScreen('settings')}
-        onScores={() => openScreen('scores')}
-      />
+      <PageTransition name="main">
+        <MainMenu
+          playerName={playerName}
+          onPlayerNameChange={setPlayerName}
+          onPlay={() => {
+            setJoinError('');
+            goToScreen('lobby');
+          }}
+          onRules={() => openScreen('rules')}
+          onSettings={() => openScreen('settings')}
+          onScores={() => openScreen('scores')}
+        />
+      </PageTransition>
     );
   }
 
   if (screen === 'rules') {
-    return <RulesMenu onBack={() => setScreen(previousScreen === 'paused' ? 'paused' : 'main')} />;
+    return (
+      <PageTransition name="rules">
+        <RulesMenu onBack={() => goToScreen(previousScreen === 'paused' ? 'paused' : 'main')} />
+      </PageTransition>
+    );
   }
 
   if (screen === 'scores') {
-    return <ScoreMenu history={history} onClear={clearHistory} onBack={() => setScreen('main')} />;
+    return (
+      <PageTransition name="scores">
+        <ScoreMenu history={history} onClear={clearHistory} onBack={() => goToScreen('main')} />
+      </PageTransition>
+    );
   }
 
   if (screen === 'settings') {
     return (
-      <SettingsMenu
-        soundEnabled={soundEnabled}
-        onToggleSound={() => setSoundEnabled((value) => !value)}
-        onBack={() => setScreen(previousScreen === 'paused' ? 'paused' : 'main')}
-      />
+      <PageTransition name="settings">
+        <SettingsMenu
+          soundEnabled={soundEnabled}
+          themeMode={themeMode}
+          onToggleSound={() => setSoundEnabled((value) => !value)}
+          onToggleTheme={() => setThemeMode((value) => (value === 'dark' ? 'light' : 'dark'))}
+          onBack={() => goToScreen(previousScreen === 'paused' ? 'paused' : 'main')}
+        />
+      </PageTransition>
     );
   }
 
   if (screen === 'lobby') {
     return (
-      <LobbyMenu
-        playerName={playerName}
-        errorMessage={joinError}
-        onStart={() => {
-          setJoinError('');
-          setScreen('playing');
-        }}
-        onBack={backToMenu}
-      />
+      <PageTransition name="lobby">
+        <LobbyMenu
+          playerName={playerName}
+          errorMessage={joinError}
+          onStart={() => {
+            setJoinError('');
+            goToScreen('playing');
+          }}
+          onBack={backToMenu}
+        />
+      </PageTransition>
     );
   }
 
   if (screen === 'ended') {
-    return <EndMenu result={result} onReplay={replay} onBackToMenu={backToMenu} />;
+    return (
+      <PageTransition name="ended">
+        <EndMenu result={result} onReplay={replay} onBackToMenu={backToMenu} />
+      </PageTransition>
+    );
   }
 
   return (
@@ -124,26 +160,28 @@ function App() {
         <GameCanvas
           playerName={playerName}
           paused={screen === 'paused'}
-          onPause={() => setScreen('paused')}
+          onPause={() => openScreen('paused')}
           onJoinRejected={(message) => {
             socket.disconnect();
             setJoinError(message);
-            setScreen('lobby');
+            goToScreen('lobby', { replace: true });
           }}
           onGameOver={(gameResult) => {
             setResult(gameResult);
             saveMatchResult(gameResult);
-            setScreen('ended');
+            goToScreen('ended', { replace: true });
           }}
         />
       )}
 
       {screen === 'paused' && (
-        <PauseMenu
-          onResume={() => setScreen('playing')}
-          onRestart={replay}
-          onBackToMenu={backToMenu}
-        />
+        <PageTransition name="paused">
+          <PauseMenu
+            onResume={() => goToScreen('playing')}
+            onRestart={replay}
+            onBackToMenu={backToMenu}
+          />
+        </PageTransition>
       )}
     </>
   );
