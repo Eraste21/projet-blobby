@@ -144,9 +144,12 @@ canvas {
   }
 
   .mobile-powers {
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
     gap: 9px;
+    touch-action: none;
+    user-select: none;
   }
 
   .mobile-powers button {

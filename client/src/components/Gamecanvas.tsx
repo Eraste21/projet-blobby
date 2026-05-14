@@ -426,6 +426,10 @@ export const GameCanvas = ({
   };
 
   const startJoystick = (event: PointerEvent<HTMLDivElement>) => {
+    if (activeJoystickPointerRef.current !== null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
     activeJoystickPointerRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     updateJoystickFromPointer(event);
@@ -433,12 +437,17 @@ export const GameCanvas = ({
 
   const moveJoystick = (event: PointerEvent<HTMLDivElement>) => {
     if (activeJoystickPointerRef.current !== event.pointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
     updateJoystickFromPointer(event);
   };
 
   const stopJoystick = (event?: PointerEvent<HTMLDivElement>) => {
     if (event && activeJoystickPointerRef.current !== event.pointerId) return;
 
+    event?.preventDefault();
+    event?.stopPropagation();
     activeJoystickPointerRef.current = null;
     setJoystickKnob({ x: 0, y: 0 });
     stopAllMobileMovement();
@@ -448,6 +457,12 @@ export const GameCanvas = ({
     if (!pausedRef.current && socket.connected) {
       socket.emit('player:usePower', { power });
     }
+  };
+
+  const useMobilePowerFromPointer = (event: PointerEvent<HTMLButtonElement>, power: PowerType) => {
+    event.preventDefault();
+    event.stopPropagation();
+    useMobilePower(power);
   };
 
   const stopAllMobileMovement = () => {
@@ -484,7 +499,7 @@ export const GameCanvas = ({
 
         <div className="mobile-powers" aria-label="Pouvoirs mobile">
           {getMobilePowerLabels(mobileRole).map((power) => (
-            <button key={power.power} type="button" onClick={() => useMobilePower(power.power)}>
+            <button key={power.power} type="button" onPointerDown={(event) => useMobilePowerFromPointer(event, power.power)}>
               <strong>{power.keyLabel}</strong>
               <span>{power.label}</span>
             </button>

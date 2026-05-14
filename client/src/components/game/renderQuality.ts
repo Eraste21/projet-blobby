@@ -12,6 +12,8 @@ export function updateRenderQuality() {
   return renderQuality;
 }
 
-export function shadowBlur(desktopValue: number, mobileValue = 0) {
-  return renderQuality.reducedEffects ? mobileValue : desktopValue;
+export function shadowBlur(_desktopValue: number, _mobileValue = 0) {
+  // Le blur Canvas est désactivé partout, mobile comme PC.
+  // Les couleurs et les formes restent identiques, mais le rendu est plus léger.
+  return 0;
 }
